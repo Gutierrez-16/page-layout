@@ -13,25 +13,47 @@ if (DEBUG_MODE) {
 }
 
 function loadEnv($path) {
-    if(!file_exists($path)) {
-        throw new Exception('.env file not found');
-    }
-
-    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        if (strpos($line, '=') !== false) {
-            list($name, $value) = explode('=', $line, 2);
-            $name = trim($name);
-            $value = trim($value);
-            
-            if (!array_key_exists($name, $_ENV)) {
-                putenv(sprintf('%s=%s', $name, $value));
-                $_ENV[$name] = $value;
-                $_SERVER[$name] = $value;
+    // Try loading from .env
+    if(file_exists($path)) {
+        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($lines as $line) {
+            if (strpos($line, '=') !== false) {
+                list($name, $value) = explode('=', $line, 2);
+                $name = trim($name);
+                $value = trim($value);
+                
+                if (!array_key_exists($name, $_ENV)) {
+                    putenv(sprintf('%s=%s', $name, $value));
+                    $_ENV[$name] = $value;
+                    $_SERVER[$name] = $value;
+                }
             }
         }
+        return true;
     }
+    
+    // Fallback to default values if .env not found
+    $defaults = [
+        'DB_HOST' => 'localhost',
+        'DB_PORT' => '3306',
+        'DB_NAME' => 'defaultdb',
+        'DB_USER' => 'root',
+        'DB_PASS' => '',
+        'DB_CHARSET' => 'utf8mb4'
+    ];
+
+    foreach ($defaults as $key => $value) {
+        putenv(sprintf('%s=%s', $key, $value));
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    }
+
+    if (DEBUG_MODE) {
+        error_log("Warning: .env file not found at {$path}, using default values");
+    }
+    
+    return false;
 }
 
-// Cargar variables de entorno
-loadEnv(__DIR__ . '/.env');
+// Try to load .env file
+loadEnv(BASE_PATH . '/.env');
